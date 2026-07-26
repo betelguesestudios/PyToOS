@@ -2,22 +2,17 @@ ENTRY(start)
 
 SECTIONS
 {
-   . = 0x100000;
+    . = 0x7E00;  /* Load right after bootloader */
 
-   .multiboot : {
-       *(.multiboot)
-       *(.text)
-   }
+    .text : {
+        *(.text)
+    }
 
-   .rodata : {
-       *(.rodata)
-   }
+    .data : {
+        *(.data)
+    }
 
-   .data : {
-       *(.data)
-   }
-
-   .bss : {
-       *(.bss)
-   }
+    .bss : {
+        *(.bss)
+    }
 }

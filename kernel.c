@@ -76,9 +76,7 @@ void print_string(const char* str) {
 
 void kernel_main() {
     clear_screen();
-    print_string("i got on at 2:00 btw\n");
-    print_string("very fun\n");
-    print_string("yo how did this not break yet\n");
-    print_string("new line test!");
+    print_string("hello te ngakau\n");
+    print_string("tuff ngakau");
     while(1); 
 }

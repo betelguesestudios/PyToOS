@@ -26,6 +26,8 @@ if exist "%DEST_DIR%\cc1.exe" (
     del cookies.txt 2>nul
 )
 
+set /p namem="Program name? (default: mykernel): "
+
 if not exist "kernel.asm" (
     echo ERROR: kernel.asm not found!
     exit /b 1
@@ -56,20 +58,20 @@ if %errorlevel% neq 0 (
 echo       Done.
 
 echo [3/3] Linking kernel...
-".\i686-elf-tools\bin\i686-elf-ld" -T linker.ld -o mykernel.elf k_asm.o k_c.o
+".\i686-elf-tools\bin\i686-elf-ld" -T linker.ld -o %namem%.elf k_asm.o k_c.o
 if %errorlevel% neq 0 (
     echo ERROR: Linking failed!
     exit /b 1
 )
 echo       Done.
 
-".\i686-elf-tools\bin\i686-elf-objcopy" -O binary mykernel.elf mykernel.bin 2>nul
+".\i686-elf-tools\bin\i686-elf-objcopy" -O binary %namem%.elf %namem%.bin 2>nul
 
 echo.
 echo ===============================
 echo   Build successful!
-echo   Output: mykernel.elf
-echo           mykernel.bin
+echo   Output: %namem%.elf
+echo           %namem%.bin
 echo ===============================
 echo.
 
@@ -87,7 +89,7 @@ if "%QEMUPATH%"=="" set "QEMUPATH=C:\Program Files\qemu"
 
 if exist "%QEMUPATH%\qemu-system-i386.exe" (
     echo Starting QEMU...
-    "%QEMUPATH%\qemu-system-i386.exe" -kernel mykernel.elf
+    "%QEMUPATH%\qemu-system-i386.exe" -kernel %namem%.elf
 ) else (
     echo QEMU not found at %QEMUPATH%
 )
