@@ -1,4 +1,3 @@
-;; kernel.asm - 32-bit entry point 
 bits 32 
 section .text 
         align 4 

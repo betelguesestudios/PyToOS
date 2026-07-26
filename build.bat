@@ -72,6 +72,12 @@ echo   Output: mykernel.elf
 echo           mykernel.bin
 echo ===============================
 echo.
+
+echo Cleaning up build files...
+del k_asm.o 2>nul
+del k_c.o 2>nul
+echo       Done.
+
 set /p RUN="Run in QEMU? (Y/N): "
 if /i not "%RUN%"=="Y" goto :eof
 
