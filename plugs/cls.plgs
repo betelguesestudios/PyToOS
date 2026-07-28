@@ -1,0 +1,9 @@
+req: preq/display.preq
+
+main():
+
+clear_screen()
+
+inside: kernel_main
+
+py: clear_screen()

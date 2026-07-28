@@ -1,0 +1,9 @@
+req: preq/display.preq
+
+main(args):
+
+set_foreground(atoi(args))
+
+inside: kernel_main
+
+py: set_foreground(atoi(args))

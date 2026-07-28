@@ -1,0 +1,9 @@
+req: preq/display.preq
+
+main(args):
+
+set_background(args)
+
+inside: kernel_main
+
+py: set_background(args)

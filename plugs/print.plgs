@@ -1,0 +1,9 @@
+req: preq/display.preq
+
+main(args):
+
+print_string(args)
+
+inside: kernel_main
+
+py: print_string(args)

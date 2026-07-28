@@ -1,0 +1,9 @@
+req: preq/display.preq
+
+main(args):
+
+set_text_color(parse_int(args), 0)
+
+inside: kernel_main
+
+py: set_text_color(args)
