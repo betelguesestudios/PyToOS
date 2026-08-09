@@ -19,6 +19,8 @@ if not exist "%ROOT_DIR%main.py" (
 set "PLUGS_TO_PROCESS="
 for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
     set "line=%%a"
+    for /f "tokens=* delims= " %%b in ("!line!") do set "line=%%b"
+    for /f "tokens=1 delims=#" %%b in ("!line!") do set "line=%%b"
     set "line=!line: =!"
     if not "!line!"=="" (
         if not "!line:~0,1!"=="#" (
@@ -58,11 +60,12 @@ echo void kernel_main() { >> "%OUTPUT_FILE%"
 
 for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
     set "line=%%a"
+    for /f "tokens=* delims= " %%b in ("!line!") do set "line=%%b"
+    for /f "tokens=1 delims=#" %%b in ("!line!") do set "line=%%b"
     if not "!line!"=="" (
         set "firstchar=!line:~0,1!"
         if not "!firstchar!"=="#" (
             set "outline=!line!"
-            for /f "tokens=1 delims=#" %%c in ("!outline!") do set "outline=%%c"
             for /f "tokens=*" %%c in ("!outline!") do set "outline=%%c"
             for /f "tokens=1 delims=(" %%d in ("!outline!") do (
                 set "funcname=%%d"
@@ -71,6 +74,13 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
                 if "!funcname!"=="print" (
                     if exist "%PLUGS_DIR%\print.plgs" (
                         set "outline=!outline:print(=print_string(!"
+                        REM Check if argument contains \r
+                        echo !outline! | findstr /c:"\r" >nul
+                        if not errorlevel 1 (
+                            set "outline=!outline:\r=!"
+                        ) else (
+                            set "outline=!outline:")="\\n")!"
+                        )
                     )
                 )
                 set "testline=!outline: =!"

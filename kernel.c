@@ -7,11 +7,9 @@ int cursor_y = 0;
 const int VGA_WIDTH = 80;
 const int VGA_HEIGHT = 25;
 unsigned char current_color = 0x0F; 
-
 void outb(unsigned short port, unsigned char value) {
     __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
 }
-
 void update_cursor_position() {
     unsigned short position = cursor_y * VGA_WIDTH + cursor_x;
     outb(0x3D4, 0x0F);
@@ -29,7 +27,6 @@ void clear_screen() {
     cursor_y = 0;
     update_cursor_position();
 }
-
 void newline() {
     cursor_x = 0;
     cursor_y++;
@@ -93,18 +90,3 @@ void cls(const char* args);
 void print(const char* args); 
  
 void kernel_main() { 
-    cls(""""); 
-    set_text_color(0x0F, 0x01); 
-    print_string("hihi"); 
-} 
- 
-// plugs for cls 
-void cls(const char* args) { 
-     clear_screen(); 
-} 
- 
-// plugs for print 
-void print(const char* args) { 
-     print_string(args); 
-} 
- 
