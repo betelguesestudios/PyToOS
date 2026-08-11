@@ -1,4 +1,5 @@
 req: preq/display.preq
+req: preq/color.preq
 
 main(args):
 

@@ -76,6 +76,14 @@ void print_string(const char* str) {
 void set_text_color(unsigned char foreground, unsigned char background) {
     current_color = (background << 4) | (foreground & 0x0F);
 }
+unsigned char parse_int(const char* str) {
+    unsigned char value = 0;
+    while (*str >= '0' && *str <= '9') {
+        value = value * 10 + (unsigned char)(*str - '0');
+        str++;
+    }
+    return value;
+}
 void set_foreground(unsigned char color) {
     current_color = (current_color & 0xF0) | (color & 0x0F);
 }

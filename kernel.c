@@ -79,14 +79,100 @@ void print_string(const char* str) {
 void set_text_color(unsigned char foreground, unsigned char background) {
     current_color = (background << 4) | (foreground & 0x0F);
 }
+unsigned char parse_int(const char* str) {
+    unsigned char value = 0;
+    while (*str >= '0' && *str <= '9') {
+        value = value * 10 + (unsigned char)(*str - '0');
+        str++;
+    }
+    return value;
+}
 void set_foreground(unsigned char color) {
     current_color = (current_color & 0xF0) | (color & 0x0F);
 }
 void set_background(unsigned char color) {
     current_color = (current_color & 0x0F) | ((color & 0x0F) << 4);
 } 
-// Forward declarations 
+// Including preq: color.preq 
+unsigned char parse_int(const char* str);
+unsigned char parse_color(const char* str) {
+    const char* s = str;
+    while (*s == ' ' || *s == '\t' || *s == '"' || *s == '\'') s++;
+    if (*s >= '0' && *s <= '9') return parse_int(s);
+    char token[16];
+    int i = 0;
+    while (((*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z') || (*s >= '0' && *s <= '9') || *s == '_') && i < 15) {
+        token[i++] = *s;
+        s++;
+    }
+    token[i] = '\0';
+    for (int j = 0; j < i; j++) {
+        if (token[j] >= 'A' && token[j] <= 'Z') token[j] += 32;
+    }
+    if (i == 0) return 7;
+    int streq(const char*, const char*);
+    if (streq(token, "black")) return 0;
+    if (streq(token, "blue")) return 1;
+    if (streq(token, "green")) return 2;
+    if (streq(token, "cyan")) return 3;
+    if (streq(token, "red")) return 4;
+    if (streq(token, "magenta")) return 5;
+    if (streq(token, "brown") || streq(token, "yellow")) return 6;
+    if (streq(token, "light_gray") || streq(token, "lightgrey") || streq(token, "lightgray") || streq(token, "grey") || streq(token, "gray")) return 7;
+    if (streq(token, "dark_gray") || streq(token, "darkgrey")) return 8;
+    if (streq(token, "light_blue")) return 9;
+    if (streq(token, "light_green")) return 10;
+    if (streq(token, "light_cyan")) return 11;
+    if (streq(token, "light_red")) return 12;
+    if (streq(token, "light_magenta")) return 13;
+    if (streq(token, "yellow")) return 14;
+    if (streq(token, "white")) return 15;
+    return 7;
+}
+int streq(const char* a, const char* b) {
+    int i = 0;
+    while (a[i] && b[i]) {
+        if (a[i] != b[i]) return 0;
+        i++;
+    }
+    return a[i] == b[i];
+}
+
+// end color.preq 
+// actual stuff 
 void cls(const char* args); 
+void setfg(const char* args); 
+void setbg(const char* args); 
 void print(const char* args); 
  
 void kernel_main() { 
+    cls(""); 
+    setfg("green"); 
+    setbg("red"); 
+    print_string("yipee\n"); 
+    print_string("wowie\n"); 
+    setbg("yellow"); 
+    setfg("red"); 
+    print_string("poo poo pee pee doo doo\n"); 
+} 
+ 
+// plugs for cls 
+void cls(const char* args) { 
+     clear_screen(); 
+} 
+ 
+// plugs for setfg 
+void setfg(const char* args) { 
+     set_foreground(parse_color(args)); 
+} 
+ 
+// plugs for setbg 
+void setbg(const char* args) { 
+     set_background(parse_color(args)); 
+} 
+ 
+// plugs for print 
+void print(const char* args) { 
+     print_string(args); 
+} 
+ 

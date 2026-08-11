@@ -35,6 +35,12 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
         )
     )
 )
+echo !PLUGS_TO_PROCESS! | find " cls " >nul
+if errorlevel 1 (
+    if exist "%PLUGS_DIR%\cls.plgs" (
+        set "PLUGS_TO_PROCESS= cls !PLUGS_TO_PROCESS!"
+    )
+)
 
 set "ALL_PREQS="
 for %%p in (%PLUGS_TO_PROCESS%) do (
@@ -50,13 +56,14 @@ for %%p in (%ALL_PREQS%) do (
     )
 )
 
-echo // Forward declarations >> "%OUTPUT_FILE%"
+echo // actual stuff >> "%OUTPUT_FILE%"
 for %%p in (%PLUGS_TO_PROCESS%) do (
     echo void %%p(const char* args^); >> "%OUTPUT_FILE%"
 )
 echo. >> "%OUTPUT_FILE%"
 
 echo void kernel_main() { >> "%OUTPUT_FILE%"
+echo     cls(""); >> "%OUTPUT_FILE%"
 
 for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
     set "line=%%a"
@@ -73,13 +80,18 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
                 
                 if "!funcname!"=="print" (
                     if exist "%PLUGS_DIR%\print.plgs" (
-                        set "outline=!outline:print(=print_string(!"
-                        REM Check if argument contains \r
-                        echo !outline! | findstr /c:"\r" >nul
+                        set "content=!outline!"
+                        set "content=!content:*print(=!"
+                        set "content=!content:~0,-1!"
+                        
+                        echo !content! | findstr /c:"\r" >nul
                         if not errorlevel 1 (
-                            set "outline=!outline:\r=!"
+                            set "content=!content:\r=!"
+                            set "outline=print_string(!content!)"
                         ) else (
-                            set "outline=!outline:")="\\n")!"
+                            set "content=!content:"=###QUOTE###!"
+                            set "content=!content:###QUOTE###="!
+                            set "outline=print_string(!content!\n"^)"
                         )
                     )
                 )

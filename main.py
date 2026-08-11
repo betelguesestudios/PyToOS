@@ -1,3 +1,7 @@
-cls() # eoieoi
-print("Hello World!") #ok
+setfg("green")
+setbg("red")
 print("yipee")
+print("wowie")
+setbg("yellow")
+setfg("red")
+print("poo poo pee pee doo doo")
