@@ -1,0 +1,5 @@
+int add_int(int a, int b) { return a + b; }
+int sub_int(int a, int b) { return a - b; }
+int mul_int(int a, int b) { return a * b; }
+int div_int(int a, int b) { return b != 0 ? a / b : 0; }
+int mod_int(int a, int b) { return b != 0 ? a % b : 0; }

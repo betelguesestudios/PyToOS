@@ -1,3 +1,5 @@
+void int_to_string(int value, char* buffer);
+void print_int(int value);
 volatile unsigned char* video_memory = (volatile unsigned char*)0xB8000;
 int cursor_x = 0;
 int cursor_y = 0;
@@ -89,4 +91,9 @@ void set_foreground(unsigned char color) {
 }
 void set_background(unsigned char color) {
     current_color = (current_color & 0x0F) | ((color & 0x0F) << 4);
+}
+void print_int(int value) {
+    char buffer[32];
+    int_to_string(value, buffer);
+    print_string(buffer);
 }

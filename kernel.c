@@ -1,6 +1,8 @@
 // PyToC generated file 
  
 // Including preq: display.preq 
+void int_to_string(int value, char* buffer);
+void print_int(int value);
 volatile unsigned char* video_memory = (volatile unsigned char*)0xB8000;
 int cursor_x = 0;
 int cursor_y = 0;
@@ -92,6 +94,11 @@ void set_foreground(unsigned char color) {
 }
 void set_background(unsigned char color) {
     current_color = (current_color & 0x0F) | ((color & 0x0F) << 4);
+}
+void print_int(int value) {
+    char buffer[32];
+    int_to_string(value, buffer);
+    print_string(buffer);
 } 
 // Including preq: color.preq 
 unsigned char parse_int(const char* str);
@@ -139,23 +146,116 @@ int streq(const char* a, const char* b) {
 }
 
 // end color.preq 
+// Including preq: vars.preq 
+#define MAX_VARS 100
+#define MAX_VAR_NAME 32
+
+typedef struct {
+    char name[MAX_VAR_NAME];
+    int value;
+    int is_initialized;
+} Variable;
+
+Variable variables[MAX_VARS];
+int var_count = 0;
+
+void init_vars() {
+    var_count = 0;
+    for (int i = 0; i < MAX_VARS; i++) {
+        variables[i].is_initialized = 0;
+    }
+}
+
+int find_var(const char* name) {
+    for (int i = 0; i < var_count; i++) {
+        if (streq(variables[i].name, name)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int set_var(const char* name, int value) {
+    int idx = find_var(name);
+    if (idx == -1) {
+        if (var_count >= MAX_VARS) return 0;
+        idx = var_count;
+        int i = 0;
+        while (name[i] && i < MAX_VAR_NAME - 1) {
+            variables[idx].name[i] = name[i];
+            i++;
+        }
+        variables[idx].name[i] = '\0';
+        var_count++;
+    }
+    variables[idx].value = value;
+    variables[idx].is_initialized = 1;
+    return 1;
+}
+
+int get_var(const char* name) {
+    int idx = find_var(name);
+    if (idx != -1 && variables[idx].is_initialized) {
+        return variables[idx].value;
+    }
+    return 0;
+}
+
+void int_to_string(int value, char* buffer) {
+    if (value == 0) {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return;
+    }
+    
+    int is_negative = 0;
+    if (value < 0) {
+        is_negative = 1;
+        value = -value;
+    }
+    
+    char temp[32];
+    int i = 0;
+    while (value > 0) {
+        temp[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+    
+    int j = 0;
+    if (is_negative) {
+        buffer[j++] = '-';
+    }
+    for (int k = i - 1; k >= 0; k--) {
+        buffer[j++] = temp[k];
+    }
+    buffer[j] = '\0';
+} 
+// Including preq: math.preq 
+int add_int(int a, int b) { return a + b; }
+int sub_int(int a, int b) { return a - b; }
+int mul_int(int a, int b) { return a * b; }
+int div_int(int a, int b) { return b != 0 ? a / b : 0; }
+int mod_int(int a, int b) { return b != 0 ? a % b : 0; } 
 // actual stuff 
 void cls(const char* args); 
-void setcbg(const char* args); 
 void setfg(const char* args); 
-void setbg(const char* args); 
+void printvar(const char* args); 
 void print(const char* args); 
+void var(const char* args); 
+void math(const char* args); 
  
 void kernel_main() { 
     cls(""); 
-    setcbg("grey"); 
+    init_vars(); 
+    set_var("x", 10); 
+    set_var("y", 20); 
+    set_var("result", 0); 
     setfg("green"); 
-    setbg("red"); 
-    print_string("yipee\n"); 
-    print_string("wowie\n"); 
-    setbg("yellow"); 
-    setfg("red"); 
-    print_string("poo poo pee pee doo doo\n"); 
+    set_var("result", add_int(get_var("x"), get_var("y"))); 
+    print_int(get_var("result")); print_char('\n'); 
+    set_var("result", sub_int(get_var("y"), get_var("x"))); 
+    print_int(get_var("result")); print_char('\n'); 
+    print_string("Hello World\n"); 
 } 
  
 // plugs for cls 
@@ -163,19 +263,9 @@ void cls(const char* args) {
      clear_screen(); 
 } 
  
-// plugs for setcbg 
-void setcbg(const char* args) { 
-      unsigned char color = parse_color(args); current_color = (current_color & 0x0F) | ((color & 0x0F) << 4); clear_screen();; 
-} 
- 
 // plugs for setfg 
 void setfg(const char* args) { 
      set_foreground(parse_color(args)); 
-} 
- 
-// plugs for setbg 
-void setbg(const char* args) { 
-     set_background(parse_color(args)); 
 } 
  
 // plugs for print 

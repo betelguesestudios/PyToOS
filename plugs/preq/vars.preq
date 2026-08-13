@@ -1,0 +1,83 @@
+#define MAX_VARS 100
+#define MAX_VAR_NAME 32
+
+typedef struct {
+    char name[MAX_VAR_NAME];
+    int value;
+    int is_initialized;
+} Variable;
+
+Variable variables[MAX_VARS];
+int var_count = 0;
+
+void init_vars() {
+    var_count = 0;
+    for (int i = 0; i < MAX_VARS; i++) {
+        variables[i].is_initialized = 0;
+    }
+}
+
+int find_var(const char* name) {
+    for (int i = 0; i < var_count; i++) {
+        if (streq(variables[i].name, name)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int set_var(const char* name, int value) {
+    int idx = find_var(name);
+    if (idx == -1) {
+        if (var_count >= MAX_VARS) return 0;
+        idx = var_count;
+        int i = 0;
+        while (name[i] && i < MAX_VAR_NAME - 1) {
+            variables[idx].name[i] = name[i];
+            i++;
+        }
+        variables[idx].name[i] = '\0';
+        var_count++;
+    }
+    variables[idx].value = value;
+    variables[idx].is_initialized = 1;
+    return 1;
+}
+
+int get_var(const char* name) {
+    int idx = find_var(name);
+    if (idx != -1 && variables[idx].is_initialized) {
+        return variables[idx].value;
+    }
+    return 0;
+}
+
+void int_to_string(int value, char* buffer) {
+    if (value == 0) {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return;
+    }
+    
+    int is_negative = 0;
+    if (value < 0) {
+        is_negative = 1;
+        value = -value;
+    }
+    
+    char temp[32];
+    int i = 0;
+    while (value > 0) {
+        temp[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+    
+    int j = 0;
+    if (is_negative) {
+        buffer[j++] = '-';
+    }
+    for (int k = i - 1; k >= 0; k--) {
+        buffer[j++] = temp[k];
+    }
+    buffer[j] = '\0';
+}

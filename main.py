@@ -1,8 +1,9 @@
-setcbg("grey")
+x = 10
+y = 20
+result = 0
 setfg("green")
-setbg("red")
-print("yipee")
-print("wowie")
-setbg("yellow")
-setfg("red")
-print("poo poo pee pee doo doo")
+result = add(x, y)
+printvar(result)
+result = sub(y, x)
+printvar(result)
+print("Hello World")
