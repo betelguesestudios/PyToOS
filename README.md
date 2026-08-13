@@ -1,2 +1,3 @@
 # PyToOS
-A batch script to turn .py into an OS
+A batch script to turn .py into a custom kernel
+
