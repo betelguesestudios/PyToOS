@@ -1,3 +1,4 @@
+setcbg("grey")
 setfg("green")
 setbg("red")
 print("yipee")

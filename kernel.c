@@ -141,12 +141,14 @@ int streq(const char* a, const char* b) {
 // end color.preq 
 // actual stuff 
 void cls(const char* args); 
+void setcbg(const char* args); 
 void setfg(const char* args); 
 void setbg(const char* args); 
 void print(const char* args); 
  
 void kernel_main() { 
     cls(""); 
+    setcbg("grey"); 
     setfg("green"); 
     setbg("red"); 
     print_string("yipee\n"); 
@@ -159,6 +161,11 @@ void kernel_main() {
 // plugs for cls 
 void cls(const char* args) { 
      clear_screen(); 
+} 
+ 
+// plugs for setcbg 
+void setcbg(const char* args) { 
+      unsigned char color = parse_color(args); current_color = (current_color & 0x0F) | ((color & 0x0F) << 4); clear_screen();; 
 } 
  
 // plugs for setfg 

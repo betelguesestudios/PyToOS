@@ -1,0 +1,13 @@
+req: preq/display.preq
+req: preq/color.preq
+
+main():
+
+clear_screen()
+
+inside: kernel_main
+
+py: 
+    unsigned char color = parse_color(args);
+    current_color = (current_color & 0x0F) | ((color & 0x0F) << 4);
+    clear_screen();
