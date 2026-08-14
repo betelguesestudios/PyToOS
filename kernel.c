@@ -58,6 +58,34 @@ void print_char(char c) {
         return;
     }
     
+    if (c == '\b') {
+        if (cursor_x > 0) {
+            cursor_x--;
+            // Clear the character at the new position
+            int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+            video_memory[offset] = ' ';
+            video_memory[offset + 1] = current_color;
+            update_cursor_position();
+        } else if (cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+            // Clear the character at the new position
+            int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+            video_memory[offset] = ' ';
+            video_memory[offset + 1] = current_color;
+            update_cursor_position();
+        }
+        return;
+    }
+    
+    if (c == '\t') {
+        int spaces = 8 - (cursor_x % 8);
+        for (int i = 0; i < spaces; i++) {
+            print_char(' ');
+        }
+        return;
+    }
+    
     int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
     video_memory[offset] = c;
     video_memory[offset + 1] = current_color; 
@@ -149,10 +177,13 @@ int streq(const char* a, const char* b) {
 // Including preq: vars.preq 
 #define MAX_VARS 100
 #define MAX_VAR_NAME 32
+#define MAX_STRING_LENGTH 256
 
 typedef struct {
     char name[MAX_VAR_NAME];
     int value;
+    char str_value[MAX_STRING_LENGTH];
+    int is_string;
     int is_initialized;
 } Variable;
 
@@ -163,6 +194,7 @@ void init_vars() {
     var_count = 0;
     for (int i = 0; i < MAX_VARS; i++) {
         variables[i].is_initialized = 0;
+        variables[i].is_string = 0;
     }
 }
 
@@ -189,16 +221,54 @@ int set_var(const char* name, int value) {
         var_count++;
     }
     variables[idx].value = value;
+    variables[idx].is_string = 0;
+    variables[idx].is_initialized = 1;
+    return 1;
+}
+
+int set_var_string(const char* name, const char* str) {
+    int idx = find_var(name);
+    if (idx == -1) {
+        if (var_count >= MAX_VARS) return 0;
+        idx = var_count;
+        int i = 0;
+        while (name[i] && i < MAX_VAR_NAME - 1) {
+            variables[idx].name[i] = name[i];
+            i++;
+        }
+        variables[idx].name[i] = '\0';
+        var_count++;
+    }
+    int i = 0;
+    while (str[i] && i < MAX_STRING_LENGTH - 1) {
+        variables[idx].str_value[i] = str[i];
+        i++;
+    }
+    variables[idx].str_value[i] = '\0';
+    variables[idx].is_string = 1;
     variables[idx].is_initialized = 1;
     return 1;
 }
 
 int get_var(const char* name) {
     int idx = find_var(name);
-    if (idx != -1 && variables[idx].is_initialized) {
+    if (idx != -1 && variables[idx].is_initialized && !variables[idx].is_string) {
         return variables[idx].value;
     }
     return 0;
+}
+
+char* get_var_string(const char* name) {
+    int idx = find_var(name);
+    if (idx != -1 && variables[idx].is_initialized && variables[idx].is_string) {
+        return variables[idx].str_value;
+    }
+    return "";
+}
+
+int is_string_var(const char* name) {
+    int idx = find_var(name);
+    return (idx != -1 && variables[idx].is_initialized && variables[idx].is_string);
 }
 
 void int_to_string(int value, char* buffer) {
@@ -207,20 +277,20 @@ void int_to_string(int value, char* buffer) {
         buffer[1] = '\0';
         return;
     }
-    
+
     int is_negative = 0;
     if (value < 0) {
         is_negative = 1;
         value = -value;
     }
-    
+
     char temp[32];
     int i = 0;
     while (value > 0) {
         temp[i++] = '0' + (value % 10);
         value /= 10;
     }
-    
+
     int j = 0;
     if (is_negative) {
         buffer[j++] = '-';
@@ -236,26 +306,184 @@ int sub_int(int a, int b) { return a - b; }
 int mul_int(int a, int b) { return a * b; }
 int div_int(int a, int b) { return b != 0 ? a / b : 0; }
 int mod_int(int a, int b) { return b != 0 ? a % b : 0; } 
+// Including preq: input.preq 
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+
+#define KEYBOARD_DATA_PORT 0x60
+#define KEYBOARD_STATUS_PORT 0x64
+#define KEYBOARD_BUFFER_SIZE 256
+
+char keyboard_buffer[KEYBOARD_BUFFER_SIZE];
+int keyboard_buffer_start = 0;
+int keyboard_buffer_end = 0;
+int keyboard_buffer_count = 0;
+int shift_pressed = 0;
+int caps_lock = 0;
+char scancode_to_ascii[] = {
+    0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
+    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
+    0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
+    0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0,
+    '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '-',
+    0, 0, 0, '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+char scancode_to_ascii_shift[] = {
+    0, 27, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b',
+    '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',
+    0, 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',
+    0, '|', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', 0,
+    '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '-',
+    0, 0, 0, '+', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+unsigned char inb(unsigned short port) {
+    unsigned char result;
+    __asm__ volatile("inb %1, %0" : "=a"(result) : "Nd"(port));
+    return result;
+}
+int keyboard_has_data() {
+    return inb(KEYBOARD_STATUS_PORT) & 0x01;
+}
+unsigned char keyboard_read_scan_code() {
+    return inb(KEYBOARD_DATA_PORT);
+}
+
+void process_scan_code(unsigned char scancode) {
+    char ascii_char;
+    if (scancode & 0x80) {
+        unsigned char released_key = scancode & 0x7F;
+        if (released_key == 0x2A || released_key == 0x36) {
+            shift_pressed = 0;
+        }
+        return; 
+    }
+    switch (scancode) {
+        case 0x2A: 
+        case 0x36: 
+            shift_pressed = 1;
+            break;
+            
+        case 0x3A: 
+            caps_lock = !caps_lock;
+            break;
+            
+        case 0x0E: 
+            if (keyboard_buffer_count < KEYBOARD_BUFFER_SIZE) {
+                keyboard_buffer[keyboard_buffer_end] = '\b';
+                keyboard_buffer_end = (keyboard_buffer_end + 1) % KEYBOARD_BUFFER_SIZE;
+                keyboard_buffer_count++;
+                if (cursor_x > 0) {
+                    cursor_x--;
+                    int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+                    video_memory[offset] = ' ';
+                    video_memory[offset + 1] = current_color;
+                    update_cursor_position();
+                }
+            }
+            break;
+            
+        case 0x1C: 
+            ascii_char = '\n';
+            if (keyboard_buffer_count < KEYBOARD_BUFFER_SIZE) {
+                keyboard_buffer[keyboard_buffer_end] = ascii_char;
+                keyboard_buffer_end = (keyboard_buffer_end + 1) % KEYBOARD_BUFFER_SIZE;
+                keyboard_buffer_count++;
+            }
+            print_char('\n');
+            break;
+            
+        default:
+            if (scancode < 58) {
+                if (shift_pressed || caps_lock) {
+                    ascii_char = scancode_to_ascii_shift[scancode];
+                } else {
+                    ascii_char = scancode_to_ascii[scancode];
+                }
+                
+                if (ascii_char != 0 && ascii_char != '\b') {
+                    if (keyboard_buffer_count < KEYBOARD_BUFFER_SIZE) {
+                        keyboard_buffer[keyboard_buffer_end] = ascii_char;
+                        keyboard_buffer_end = (keyboard_buffer_end + 1) % KEYBOARD_BUFFER_SIZE;
+                        keyboard_buffer_count++;
+                        print_char(ascii_char);
+                    }
+                }
+            }
+            break;
+    }
+}
+void keyboard_poll() {
+    while (keyboard_has_data()) {
+        unsigned char scancode = keyboard_read_scan_code();
+        process_scan_code(scancode);
+    }
+}
+char get_char() {
+    char c;
+    while (keyboard_buffer_count == 0) {
+        keyboard_poll();
+        for (volatile int i = 0; i < 1000; i++);
+    }
+    
+    c = keyboard_buffer[keyboard_buffer_start];
+    keyboard_buffer_start = (keyboard_buffer_start + 1) % KEYBOARD_BUFFER_SIZE;
+    keyboard_buffer_count--;
+    
+    return c;
+}
+char* get_input_string(const char* prompt) {
+    static char buffer[256];
+    int index = 0;
+    char c;
+    if (prompt != NULL && prompt[0] != '\0') {
+        print_string(prompt);
+    }
+    while (index < 255) {
+        c = get_char();
+        
+        if (c == '\n') {
+            break;
+        } else if (c == '\b') {
+            if (index > 0) {
+                index--;
+            }
+        } else {
+            buffer[index++] = c;
+        }
+    }
+    
+    buffer[index] = '\0';
+    return buffer;
+}
+void keyboard_init() {
+    keyboard_buffer_start = 0;
+    keyboard_buffer_end = 0;
+    keyboard_buffer_count = 0;
+    shift_pressed = 0;
+    caps_lock = 0;
+} 
 // actual stuff 
 void cls(const char* args); 
-void setfg(const char* args); 
-void printvar(const char* args); 
 void print(const char* args); 
+void printvar(const char* args); 
 void var(const char* args); 
 void math(const char* args); 
+void input(const char* args); 
  
 void kernel_main() { 
     cls(""); 
     init_vars(); 
-    set_var("x", 10); 
-    set_var("y", 20); 
-    set_var("result", 0); 
-    setfg("green"); 
-    set_var("result", add_int(get_var("x"), get_var("y"))); 
-    print_int(get_var("result")); print_char('\n'); 
-    set_var("result", sub_int(get_var("y"), get_var("x"))); 
-    print_int(get_var("result")); print_char('\n'); 
-    print_string("Hello World\n"); 
+    keyboard_init(); 
+    set_var_string("user_name", get_input_string("Please enter your name: ")); 
+    print_string("Hello, \n"); 
+    if (is_string_var("user_name")) { print_string(get_var_string("user_name")); } else { print_int(get_var("user_name")); } print_char('\n'); 
+    set_var_string("user_name", get_input_string("Please enter your name: ")); 
+    print_string("Hello, \n"); 
+    if (is_string_var("user_name")) { print_string(get_var_string("user_name")); } else { print_int(get_var("user_name")); } print_char('\n'); 
+    set_var_string("user_name", get_input_string("Please enter your name: ")); 
+    print_string("Hello, \n"); 
+    if (is_string_var("user_name")) { print_string(get_var_string("user_name")); } else { print_int(get_var("user_name")); } print_char('\n'); 
 } 
  
 // plugs for cls 
@@ -263,13 +491,13 @@ void cls(const char* args) {
      clear_screen(); 
 } 
  
-// plugs for setfg 
-void setfg(const char* args) { 
-     set_foreground(parse_color(args)); 
-} 
- 
 // plugs for print 
 void print(const char* args) { 
      print_string(args); 
+} 
+ 
+// plugs for input 
+void input(const char* args) { 
+     keyboard_init();; 
 } 
  

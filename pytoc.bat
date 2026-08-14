@@ -44,7 +44,6 @@ if errorlevel 1 (
     )
 )
 
-:: Check if variable operations are needed
 set "NEEDS_VARS=0"
 for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
     set "line=%%a"
@@ -66,7 +65,20 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
     )
 )
 
-:: Add vars plugin if needed
+set "NEEDS_INPUT=0"
+for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
+    set "line=%%a"
+    for /f "tokens=* delims= " %%b in ("!line!") do set "line=%%b"
+    for /f "tokens=1 delims=#" %%b in ("!line!") do set "line=%%b"
+    set "line=!line: =!"
+    if not "!line!"=="" (
+        echo !line! | findstr /c:"input(" >nul
+        if not errorlevel 1 (
+            set "NEEDS_INPUT=1"
+        )
+    )
+)
+
 if "!NEEDS_VARS!"=="1" (
     echo !PLUGS_TO_PROCESS! | find " var " >nul
     if errorlevel 1 (
@@ -78,6 +90,15 @@ if "!NEEDS_VARS!"=="1" (
     if errorlevel 1 (
         if exist "%PLUGS_DIR%\math.plgs" (
             set "PLUGS_TO_PROCESS=!PLUGS_TO_PROCESS! math "
+        )
+    )
+)
+
+if "!NEEDS_INPUT!"=="1" (
+    echo !PLUGS_TO_PROCESS! | find " input " >nul
+    if errorlevel 1 (
+        if exist "%PLUGS_DIR%\input.plgs" (
+            set "PLUGS_TO_PROCESS=!PLUGS_TO_PROCESS! input "
         )
     )
 )
@@ -109,33 +130,27 @@ if "!NEEDS_VARS!"=="1" (
     echo     init_vars^(^); >> "%OUTPUT_FILE%"
 )
 
+if "!NEEDS_INPUT!"=="1" (
+    echo     keyboard_init^(^); >> "%OUTPUT_FILE%"
+)
+
 for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
     set "line=%%a"
-    
-    :: Skip empty lines
     if not "!line!"=="" (
-        :: Skip # comments
         set "firstchar=!line:~0,1!"
         if not "!firstchar!"=="#" (
-            :: Skip // comments
             set "secondchar=!line:~0,2!"
             if not "!secondchar!"=="//" (
-                :: Remove leading spaces
                 for /f "tokens=*" %%c in ("!line!") do set "line=%%c"
-                
-                :: Remove inline // comments
                 for /f "tokens=1 delims=/" %%c in ("!line!") do set "line=%%c"
                 
                 set "outline=!line!"
-                
-                :: Simple variable assignment detection
                 echo !outline! | findstr /c:"=" >nul
                 if not errorlevel 1 (
                     echo !outline! | findstr /c:"==" >nul
                     if errorlevel 1 (
                         echo !outline! | findstr /c:"(" >nul
                         if errorlevel 1 (
-                            :: Simple assignment without function call
                             for /f "tokens=1,* delims==" %%v in ("!outline!") do (
                                 set "varname=%%v"
                                 set "varvalue=%%w"
@@ -144,14 +159,12 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
                                 set "outline=set_var("!varname!", !varvalue!);"
                             )
                         ) else (
-                            :: Assignment with function call
                             for /f "tokens=1,* delims==" %%v in ("!outline!") do (
                                 set "varname=%%v"
                                 set "varexpr=%%w"
                                 set "varname=!varname: =!"
                                 set "varexpr=!varexpr: =!"
                                 
-                                :: Extract function name
                                 for /f "tokens=1 delims=(" %%f in ("!varexpr!") do (
                                     set "funcname=%%f"
                                     
@@ -195,37 +208,50 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
                                             set "arg2=!arg2: =!"
                                             set "outline=set_var("!varname!", div_int(get_var("!arg1!"), get_var("!arg2!")));"
                                         )
+                                    ) else if "!funcname!"=="input" (
+                                        set "original_line=%%a"
+                                        for /f "tokens=*" %%c in ("!original_line!") do set "original_line=%%c"
+                                        set "args=!original_line:*input(=!"
+                                        set "args=!args:)=!"
+                                        for /f "tokens=*" %%c in ("!args!") do set "args=%%c"
+                                        
+                                        set "outline=set_var_string("!varname!", get_input_string(!args!));"
                                     )
                                 )
                             )
                         )
                     )
                 )
-                
-                :: Handle printvar
-                echo !outline! | findstr /c:"printvar" >nul
+                echo !outline! | findstr /c:"printvar(" >nul
                 if not errorlevel 1 (
                     set "content=!outline!"
                     set "content=!content:*printvar(=!"
                     set "content=!content:~0,-1!"
                     set "content=!content: =!"
-                    set "outline=print_int(get_var("!content!"));"
+                    set "outline=if (is_string_var("!content!")) { print_string(get_var_string("!content!")); } else { print_int(get_var("!content!")); }"
                     set "outline=!outline! print_char('^\n');"
                 )
-                
-                :: Handle print
+                echo !outline! | findstr /c:"printvar" >nul
+                if not errorlevel 1 (
+                    echo !outline! | findstr /c:"printvar(" >nul
+                    if errorlevel 1 (
+                        set "content=!outline!"
+                        set "content=!content:*printvar=!"
+                        set "content=!content: =!"
+                        set "outline=if (is_string_var("!content!")) { print_string(get_var_string("!content!")); } else { print_int(get_var("!content!")); }"
+                        set "outline=!outline! print_char('^\n');"
+                    )
+                )
                 echo !outline! | findstr /c:"print(" >nul
                 if not errorlevel 1 (
                     set "content=!outline!"
                     set "content=!content:*print(=!"
                     set "content=!content:~0,-1!"
-                    
-                    :: Check if content is a variable name
                     set "testcontent=!content!"
                     set "testcontent=!testcontent:"=!"
                     echo !testcontent! | findstr /r /c:"^[a-zA-Z_][a-zA-Z0-9_]*$" >nul
                     if not errorlevel 1 (
-                        set "outline=print_int(get_var("!content!"));"
+                        set "outline=if (is_string_var("!content!")) { print_string(get_var_string("!content!")); } else { print_int(get_var("!content!")); }"
                         set "outline=!outline! print_char('^\n');"
                     ) else (
                         set "content=!content:"=###QUOTE###!"
@@ -303,7 +329,11 @@ for /f "usebackq tokens=*" %%a in ("%plugfile%") do (
         set "inside_py=1"
         set "code=!line:*py:=!"
         if not "!code!"=="" (
-            set "python_code=!code!"
+            if defined python_code (
+                set "python_code=!python_code! !code!"
+            ) else (
+                set "python_code=!code!"
+            )
         )
     ) else if "!inside_py!"=="1" (
         if not "!line!"=="" (

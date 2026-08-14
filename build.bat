@@ -41,7 +41,7 @@ if not exist "linker.ld" (
     exit /b 1
 )
 
-echo [1/3] Assembling kernel.asm...
+echo [1/2] Assembling kernel.asm...
 ".\NASM\nasm.exe" -f elf32 kernel.asm -o k_asm.o
 if %errorlevel% neq 0 (
     echo ERROR: Assembly failed!
@@ -49,7 +49,7 @@ if %errorlevel% neq 0 (
 )
 echo       Done.
 
-echo [2/3] Compiling kernel.c...
+echo [2/2] Compiling kernel.c...
 ".\i686-elf-tools\bin\i686-elf-gcc.exe" -ffreestanding -c kernel.c -o k_c.o
 if %errorlevel% neq 0 (
     echo ERROR: Compilation failed!

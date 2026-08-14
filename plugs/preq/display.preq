@@ -55,6 +55,34 @@ void print_char(char c) {
         return;
     }
     
+    if (c == '\b') {
+        if (cursor_x > 0) {
+            cursor_x--;
+            // Clear the character at the new position
+            int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+            video_memory[offset] = ' ';
+            video_memory[offset + 1] = current_color;
+            update_cursor_position();
+        } else if (cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+            // Clear the character at the new position
+            int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
+            video_memory[offset] = ' ';
+            video_memory[offset + 1] = current_color;
+            update_cursor_position();
+        }
+        return;
+    }
+    
+    if (c == '\t') {
+        int spaces = 8 - (cursor_x % 8);
+        for (int i = 0; i < spaces; i++) {
+            print_char(' ');
+        }
+        return;
+    }
+    
     int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
     video_memory[offset] = c;
     video_memory[offset + 1] = current_color; 

@@ -1,9 +1,12 @@
 #define MAX_VARS 100
 #define MAX_VAR_NAME 32
+#define MAX_STRING_LENGTH 256
 
 typedef struct {
     char name[MAX_VAR_NAME];
     int value;
+    char str_value[MAX_STRING_LENGTH];
+    int is_string;
     int is_initialized;
 } Variable;
 
@@ -14,6 +17,7 @@ void init_vars() {
     var_count = 0;
     for (int i = 0; i < MAX_VARS; i++) {
         variables[i].is_initialized = 0;
+        variables[i].is_string = 0;
     }
 }
 
@@ -40,16 +44,54 @@ int set_var(const char* name, int value) {
         var_count++;
     }
     variables[idx].value = value;
+    variables[idx].is_string = 0;
+    variables[idx].is_initialized = 1;
+    return 1;
+}
+
+int set_var_string(const char* name, const char* str) {
+    int idx = find_var(name);
+    if (idx == -1) {
+        if (var_count >= MAX_VARS) return 0;
+        idx = var_count;
+        int i = 0;
+        while (name[i] && i < MAX_VAR_NAME - 1) {
+            variables[idx].name[i] = name[i];
+            i++;
+        }
+        variables[idx].name[i] = '\0';
+        var_count++;
+    }
+    int i = 0;
+    while (str[i] && i < MAX_STRING_LENGTH - 1) {
+        variables[idx].str_value[i] = str[i];
+        i++;
+    }
+    variables[idx].str_value[i] = '\0';
+    variables[idx].is_string = 1;
     variables[idx].is_initialized = 1;
     return 1;
 }
 
 int get_var(const char* name) {
     int idx = find_var(name);
-    if (idx != -1 && variables[idx].is_initialized) {
+    if (idx != -1 && variables[idx].is_initialized && !variables[idx].is_string) {
         return variables[idx].value;
     }
     return 0;
+}
+
+char* get_var_string(const char* name) {
+    int idx = find_var(name);
+    if (idx != -1 && variables[idx].is_initialized && variables[idx].is_string) {
+        return variables[idx].str_value;
+    }
+    return "";
+}
+
+int is_string_var(const char* name) {
+    int idx = find_var(name);
+    return (idx != -1 && variables[idx].is_initialized && variables[idx].is_string);
 }
 
 void int_to_string(int value, char* buffer) {
@@ -58,20 +100,20 @@ void int_to_string(int value, char* buffer) {
         buffer[1] = '\0';
         return;
     }
-    
+
     int is_negative = 0;
     if (value < 0) {
         is_negative = 1;
         value = -value;
     }
-    
+
     char temp[32];
     int i = 0;
     while (value > 0) {
         temp[i++] = '0' + (value % 10);
         value /= 10;
     }
-    
+
     int j = 0;
     if (is_negative) {
         buffer[j++] = '-';
