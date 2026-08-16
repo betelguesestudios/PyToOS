@@ -149,7 +149,14 @@ for /f "usebackq tokens=*" %%a in ("%ROOT_DIR%main.py") do (
                             for /f "tokens=1,* delims==" %%v in ("!outline!") do (
                                 set "varname=%%v"
                                 set "varname=!varname: =!"
-                                set "outline=char* !varname! = input("hello"); set_var_string("!varname!", !varname!);"
+                                set "rest=%%w"
+                                REM Extract the prompt string from input() - preserve spaces
+                                set "prompt=!rest!"
+                                set "prompt=!prompt:*input(=!"
+                                set "prompt=!prompt:)=!"
+                                REM Remove leading/trailing spaces only
+                                for /f "tokens=*" %%x in ("!prompt!") do set "prompt=%%x"
+                                set "outline=char* !varname! = input(!prompt!); set_var_string("!varname!", !varname!);"
                             )
                         ) else (
                             for /f "tokens=1,* delims==" %%v in ("!outline!") do (
@@ -238,9 +245,8 @@ echo. >> "%OUTPUT_FILE%"
 for %%p in (%PLUGS_TO_PROCESS%) do (
     call :WriteFunction "%%p"
 )
+
 echo Success!
-type "%OUTPUT_FILE%"
-pause
 exit /b 0
 
 :GetPreqs

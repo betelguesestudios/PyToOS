@@ -8,10 +8,12 @@ int cursor_x = 0;
 int cursor_y = 0;
 const int VGA_WIDTH = 80;
 const int VGA_HEIGHT = 25;
-unsigned char current_color = 0x0F; 
+unsigned char current_color = 0x0F;
+
 void outb(unsigned short port, unsigned char value) {
     __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
 }
+
 void update_cursor_position() {
     unsigned short position = cursor_y * VGA_WIDTH + cursor_x;
     outb(0x3D4, 0x0F);
@@ -22,34 +24,41 @@ void update_cursor_position() {
 
 void clear_screen() {
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT * 2; i += 2) {
-        video_memory[i] = ' ';  
-        video_memory[i+1] = current_color; 
+        video_memory[i] = ' ';
+        video_memory[i+1] = current_color;
     }
     cursor_x = 0;
     cursor_y = 0;
     update_cursor_position();
 }
+
+void scroll() {
+    for (int y = 0; y < VGA_HEIGHT - 1; y++) {
+        for (int x = 0; x < VGA_WIDTH; x++) {
+            int source = (y + 1) * VGA_WIDTH * 2 + x * 2;
+            int dest = y * VGA_WIDTH * 2 + x * 2;
+            video_memory[dest] = video_memory[source];
+            video_memory[dest + 1] = video_memory[source + 1];
+        }
+    }
+    for (int x = 0; x < VGA_WIDTH; x++) {
+        int offset = (VGA_HEIGHT - 1) * VGA_WIDTH * 2 + x * 2;
+        video_memory[offset] = ' ';
+        video_memory[offset + 1] = current_color;
+    }
+    cursor_y = VGA_HEIGHT - 1;
+    cursor_x = 0;
+    update_cursor_position();
+}
+
 void newline() {
     cursor_x = 0;
     cursor_y++;
     if (cursor_y >= VGA_HEIGHT) {
-        for (int y = 0; y < VGA_HEIGHT - 1; y++) {
-            for (int x = 0; x < VGA_WIDTH; x++) {
-                int source = (y + 1) * VGA_WIDTH * 2 + x * 2;
-                int dest = y * VGA_WIDTH * 2 + x * 2;
-                video_memory[dest] = video_memory[source];
-                video_memory[dest + 1] = video_memory[source + 1];
-            }
-        }
-        for (int x = 0; x < VGA_WIDTH; x++) {
-            int offset = (VGA_HEIGHT - 1) * VGA_WIDTH * 2 + x * 2;
-            video_memory[offset] = ' ';
-            video_memory[offset + 1] = current_color;  
-        }
-        cursor_y = VGA_HEIGHT - 1;
+        scroll();
+    } else {
+        update_cursor_position();
     }
-    
-    update_cursor_position();
 }
 
 void print_char(char c) {
@@ -61,7 +70,6 @@ void print_char(char c) {
     if (c == '\b') {
         if (cursor_x > 0) {
             cursor_x--;
-            // Clear the character at the new position
             int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
             video_memory[offset] = ' ';
             video_memory[offset + 1] = current_color;
@@ -69,7 +77,6 @@ void print_char(char c) {
         } else if (cursor_y > 0) {
             cursor_y--;
             cursor_x = VGA_WIDTH - 1;
-            // Clear the character at the new position
             int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
             video_memory[offset] = ' ';
             video_memory[offset + 1] = current_color;
@@ -86,48 +93,60 @@ void print_char(char c) {
         return;
     }
     
+    if (c == '\r') {
+        cursor_x = 0;
+        update_cursor_position();
+        return;
+    }
+    
     int offset = (cursor_y * VGA_WIDTH + cursor_x) * 2;
     video_memory[offset] = c;
-    video_memory[offset + 1] = current_color; 
+    video_memory[offset + 1] = current_color;
     
     cursor_x++;
     if (cursor_x >= VGA_WIDTH) {
         newline();
+    } else {
+        update_cursor_position();
     }
-    
-    update_cursor_position();
 }
 
 void print_string(const char* str) {
     int i = 0;
-    
     while (str[i] != '\0') {
         print_char(str[i]);
         i++;
     }
 }
+
 void set_text_color(unsigned char foreground, unsigned char background) {
     current_color = (background << 4) | (foreground & 0x0F);
 }
+
 unsigned char parse_int(const char* str) {
     unsigned char value = 0;
+    while (*str == ' ' || *str == '\t') str++;
     while (*str >= '0' && *str <= '9') {
         value = value * 10 + (unsigned char)(*str - '0');
         str++;
     }
     return value;
 }
+
 void set_foreground(unsigned char color) {
     current_color = (current_color & 0xF0) | (color & 0x0F);
 }
+
 void set_background(unsigned char color) {
     current_color = (current_color & 0x0F) | ((color & 0x0F) << 4);
 }
+
 void print_int(int value) {
     char buffer[32];
     int_to_string(value, buffer);
     print_string(buffer);
 }
+
 void int_to_string(int value, char* buffer) {
     if (value == 0) {
         buffer[0] = '0';
@@ -157,21 +176,9 @@ void int_to_string(int value, char* buffer) {
     }
     buffer[j] = '\0';
 }
+
 void print_float(float value) {
-    int int_part = (int)value;
-    int decimal_part = (int)((value - int_part) * 100);
-    if (decimal_part < 0) decimal_part = -decimal_part;
-    
-    if (decimal_part == 0) {
-        print_int(int_part);
-    } else {
-        char buffer[64];
-        int_to_string(int_part, buffer);
-        print_string(buffer);
-        print_char('.');
-        int_to_string(decimal_part, buffer);
-        print_string(buffer);
-    }
+    print_int((int)value);
 } 
 // Including preq: color.preq 
 unsigned char parse_int(const char* str);
@@ -633,7 +640,7 @@ void kernel_main() {
     cls(""); 
     init_vars(); 
     keyboard_init(); 
-    char* shutup = input("hello"); set_var_string("shutup", shutup); 
+    char* shutup = input("What do you want to add 10 to "); set_var_string("shutup", shutup); 
     set_var("shutp", 10); 
     set_var("shutup_num", parse_int(shutup)); 
     float temp = (float)get_var("shutup_num")+(float)get_var("shutp"); print_float(temp); print_char('\n'); 
