@@ -127,6 +127,51 @@ void print_int(int value) {
     char buffer[32];
     int_to_string(value, buffer);
     print_string(buffer);
+}
+void int_to_string(int value, char* buffer) {
+    if (value == 0) {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return;
+    }
+
+    int is_negative = 0;
+    if (value < 0) {
+        is_negative = 1;
+        value = -value;
+    }
+
+    char temp[32];
+    int i = 0;
+    while (value > 0) {
+        temp[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+
+    int j = 0;
+    if (is_negative) {
+        buffer[j++] = '-';
+    }
+    for (int k = i - 1; k >= 0; k--) {
+        buffer[j++] = temp[k];
+    }
+    buffer[j] = '\0';
+}
+void print_float(float value) {
+    int int_part = (int)value;
+    int decimal_part = (int)((value - int_part) * 100);
+    if (decimal_part < 0) decimal_part = -decimal_part;
+    
+    if (decimal_part == 0) {
+        print_int(int_part);
+    } else {
+        char buffer[64];
+        int_to_string(int_part, buffer);
+        print_string(buffer);
+        print_char('.');
+        int_to_string(decimal_part, buffer);
+        print_string(buffer);
+    }
 } 
 // Including preq: color.preq 
 unsigned char parse_int(const char* str);
@@ -182,8 +227,10 @@ int streq(const char* a, const char* b) {
 typedef struct {
     char name[MAX_VAR_NAME];
     int value;
+    float float_value;
     char str_value[MAX_STRING_LENGTH];
     int is_string;
+    int is_float;
     int is_initialized;
 } Variable;
 
@@ -195,6 +242,7 @@ void init_vars() {
     for (int i = 0; i < MAX_VARS; i++) {
         variables[i].is_initialized = 0;
         variables[i].is_string = 0;
+        variables[i].is_float = 0;
     }
 }
 
@@ -222,6 +270,27 @@ int set_var(const char* name, int value) {
     }
     variables[idx].value = value;
     variables[idx].is_string = 0;
+    variables[idx].is_float = 0;
+    variables[idx].is_initialized = 1;
+    return 1;
+}
+
+int set_var_float(const char* name, float value) {
+    int idx = find_var(name);
+    if (idx == -1) {
+        if (var_count >= MAX_VARS) return 0;
+        idx = var_count;
+        int i = 0;
+        while (name[i] && i < MAX_VAR_NAME - 1) {
+            variables[idx].name[i] = name[i];
+            i++;
+        }
+        variables[idx].name[i] = '\0';
+        var_count++;
+    }
+    variables[idx].float_value = value;
+    variables[idx].is_string = 0;
+    variables[idx].is_float = 1;
     variables[idx].is_initialized = 1;
     return 1;
 }
@@ -246,16 +315,25 @@ int set_var_string(const char* name, const char* str) {
     }
     variables[idx].str_value[i] = '\0';
     variables[idx].is_string = 1;
+    variables[idx].is_float = 0;
     variables[idx].is_initialized = 1;
     return 1;
 }
 
 int get_var(const char* name) {
     int idx = find_var(name);
-    if (idx != -1 && variables[idx].is_initialized && !variables[idx].is_string) {
+    if (idx != -1 && variables[idx].is_initialized && !variables[idx].is_string && !variables[idx].is_float) {
         return variables[idx].value;
     }
     return 0;
+}
+
+float get_var_float(const char* name) {
+    int idx = find_var(name);
+    if (idx != -1 && variables[idx].is_initialized && variables[idx].is_float) {
+        return variables[idx].float_value;
+    }
+    return 0.0f;
 }
 
 char* get_var_string(const char* name) {
@@ -271,41 +349,122 @@ int is_string_var(const char* name) {
     return (idx != -1 && variables[idx].is_initialized && variables[idx].is_string);
 }
 
-void int_to_string(int value, char* buffer) {
-    if (value == 0) {
-        buffer[0] = '0';
-        buffer[1] = '\0';
-        return;
-    }
-
-    int is_negative = 0;
-    if (value < 0) {
-        is_negative = 1;
-        value = -value;
-    }
-
-    char temp[32];
-    int i = 0;
-    while (value > 0) {
-        temp[i++] = '0' + (value % 10);
-        value /= 10;
-    }
-
-    int j = 0;
-    if (is_negative) {
-        buffer[j++] = '-';
-    }
-    for (int k = i - 1; k >= 0; k--) {
-        buffer[j++] = temp[k];
-    }
-    buffer[j] = '\0';
+int is_float_var(const char* name) {
+    int idx = find_var(name);
+    return (idx != -1 && variables[idx].is_initialized && variables[idx].is_float);
 } 
 // Including preq: math.preq 
 int add_int(int a, int b) { return a + b; }
 int sub_int(int a, int b) { return a - b; }
 int mul_int(int a, int b) { return a * b; }
 int div_int(int a, int b) { return b != 0 ? a / b : 0; }
-int mod_int(int a, int b) { return b != 0 ? a % b : 0; } 
+int mod_int(int a, int b) { return b != 0 ? a % b : 0; }
+
+float add_float(float a, float b) { return a + b; }
+float sub_float(float a, float b) { return a - b; }
+float mul_float(float a, float b) { return a * b; }
+float div_float(float a, float b) { return b != 0.0f ? a / b : 0.0f; }
+float power_float(float base, float exp) {
+    float result = 1.0f;
+    for (int i = 0; i < (int)exp; i++) {
+        result *= base;
+    }
+    return result;
+}
+
+// Helper functions for mixed arithmetic (original)
+float add_mixed(const char* a, const char* b) {
+    if (is_float_var(a) || is_float_var(b)) {
+        float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+        float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+        return fa + fb;
+    }
+    return (float)(get_var(a) + get_var(b));
+}
+
+float sub_mixed(const char* a, const char* b) {
+    if (is_float_var(a) || is_float_var(b)) {
+        float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+        float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+        return fa - fb;
+    }
+    return (float)(get_var(a) - get_var(b));
+}
+
+float mul_mixed(const char* a, const char* b) {
+    if (is_float_var(a) || is_float_var(b)) {
+        float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+        float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+        return fa * fb;
+    }
+    return (float)(get_var(a) * get_var(b));
+}
+
+float div_mixed(const char* a, const char* b) {
+    float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return fb != 0.0f ? fa / fb : 0.0f;
+}
+
+int div_int_mixed(const char* a, const char* b) {
+    int ia = get_var(a);
+    int ib = get_var(b);
+    return ib != 0 ? ia / ib : 0;
+}
+
+int mod_mixed(const char* a, const char* b) {
+    int ia = get_var(a);
+    int ib = get_var(b);
+    return ib != 0 ? ia % ib : 0;
+}
+
+float power_mixed(const char* a, const char* b) {
+    float base = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+    float exp = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    float result = 1.0f;
+    for (int i = 0; i < (int)exp; i++) {
+        result *= base;
+    }
+    return result;
+}
+
+// Helper functions for left-to-right evaluation (new)
+float add_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return a + fb;
+}
+
+float sub_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return a - fb;
+}
+
+float mul_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return a * fb;
+}
+
+float div_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return fb != 0.0f ? a / fb : 0.0f;
+}
+
+// Helper functions for float + float (if needed)
+float add_float_float(float a, float b) {
+    return a + b;
+}
+
+float sub_float_float(float a, float b) {
+    return a - b;
+}
+
+float mul_float_float(float a, float b) {
+    return a * b;
+}
+
+float div_float_float(float a, float b) {
+    return b != 0.0f ? a / b : 0.0f;
+} 
 // Including preq: input.preq 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -466,24 +625,18 @@ void keyboard_init() {
 // actual stuff 
 void cls(const char* args); 
 void print(const char* args); 
-void printvar(const char* args); 
 void var(const char* args); 
 void math(const char* args); 
-void input(const char* args); 
+char* input(const char* args); 
  
 void kernel_main() { 
     cls(""); 
     init_vars(); 
     keyboard_init(); 
-    set_var_string("user_name", get_input_string("Please enter your name: ")); 
-    print_string("Hello, \n"); 
-    if (is_string_var("user_name")) { print_string(get_var_string("user_name")); } else { print_int(get_var("user_name")); } print_char('\n'); 
-    set_var_string("user_name", get_input_string("Please enter your name: ")); 
-    print_string("Hello, \n"); 
-    if (is_string_var("user_name")) { print_string(get_var_string("user_name")); } else { print_int(get_var("user_name")); } print_char('\n'); 
-    set_var_string("user_name", get_input_string("Please enter your name: ")); 
-    print_string("Hello, \n"); 
-    if (is_string_var("user_name")) { print_string(get_var_string("user_name")); } else { print_int(get_var("user_name")); } print_char('\n'); 
+    char* shutup = input("hello"); set_var_string("shutup", shutup); 
+    set_var("shutp", 10); 
+    set_var("shutup_num", parse_int(shutup)); 
+    float temp = (float)get_var("shutup_num")+(float)get_var("shutp"); print_float(temp); print_char('\n'); 
 } 
  
 // plugs for cls 
@@ -497,7 +650,7 @@ void print(const char* args) {
 } 
  
 // plugs for input 
-void input(const char* args) { 
-     keyboard_init();; 
+char* input(const char* args) { 
+     keyboard_init();  return get_input_string(args);; 
 } 
  

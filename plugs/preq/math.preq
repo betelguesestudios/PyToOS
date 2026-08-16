@@ -3,3 +3,109 @@ int sub_int(int a, int b) { return a - b; }
 int mul_int(int a, int b) { return a * b; }
 int div_int(int a, int b) { return b != 0 ? a / b : 0; }
 int mod_int(int a, int b) { return b != 0 ? a % b : 0; }
+
+float add_float(float a, float b) { return a + b; }
+float sub_float(float a, float b) { return a - b; }
+float mul_float(float a, float b) { return a * b; }
+float div_float(float a, float b) { return b != 0.0f ? a / b : 0.0f; }
+float power_float(float base, float exp) {
+    float result = 1.0f;
+    for (int i = 0; i < (int)exp; i++) {
+        result *= base;
+    }
+    return result;
+}
+
+// Helper functions for mixed arithmetic (original)
+float add_mixed(const char* a, const char* b) {
+    if (is_float_var(a) || is_float_var(b)) {
+        float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+        float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+        return fa + fb;
+    }
+    return (float)(get_var(a) + get_var(b));
+}
+
+float sub_mixed(const char* a, const char* b) {
+    if (is_float_var(a) || is_float_var(b)) {
+        float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+        float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+        return fa - fb;
+    }
+    return (float)(get_var(a) - get_var(b));
+}
+
+float mul_mixed(const char* a, const char* b) {
+    if (is_float_var(a) || is_float_var(b)) {
+        float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+        float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+        return fa * fb;
+    }
+    return (float)(get_var(a) * get_var(b));
+}
+
+float div_mixed(const char* a, const char* b) {
+    float fa = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return fb != 0.0f ? fa / fb : 0.0f;
+}
+
+int div_int_mixed(const char* a, const char* b) {
+    int ia = get_var(a);
+    int ib = get_var(b);
+    return ib != 0 ? ia / ib : 0;
+}
+
+int mod_mixed(const char* a, const char* b) {
+    int ia = get_var(a);
+    int ib = get_var(b);
+    return ib != 0 ? ia % ib : 0;
+}
+
+float power_mixed(const char* a, const char* b) {
+    float base = is_float_var(a) ? get_var_float(a) : (float)get_var(a);
+    float exp = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    float result = 1.0f;
+    for (int i = 0; i < (int)exp; i++) {
+        result *= base;
+    }
+    return result;
+}
+
+// Helper functions for left-to-right evaluation (new)
+float add_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return a + fb;
+}
+
+float sub_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return a - fb;
+}
+
+float mul_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return a * fb;
+}
+
+float div_mixed_float(float a, const char* b) {
+    float fb = is_float_var(b) ? get_var_float(b) : (float)get_var(b);
+    return fb != 0.0f ? a / fb : 0.0f;
+}
+
+// Helper functions for float + float (if needed)
+float add_float_float(float a, float b) {
+    return a + b;
+}
+
+float sub_float_float(float a, float b) {
+    return a - b;
+}
+
+float mul_float_float(float a, float b) {
+    return a * b;
+}
+
+float div_float_float(float a, float b) {
+    return b != 0.0f ? a / b : 0.0f;
+}

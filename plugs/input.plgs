@@ -1,10 +1,5 @@
 req: preq/display.preq
 req: preq/input.preq
 
-main(args):
-
-get_input_string(args)
-
-inside: kernel_main
-
 py: keyboard_init();
+py: return get_input_string(args);

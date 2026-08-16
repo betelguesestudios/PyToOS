@@ -5,8 +5,10 @@
 typedef struct {
     char name[MAX_VAR_NAME];
     int value;
+    float float_value;
     char str_value[MAX_STRING_LENGTH];
     int is_string;
+    int is_float;
     int is_initialized;
 } Variable;
 
@@ -18,6 +20,7 @@ void init_vars() {
     for (int i = 0; i < MAX_VARS; i++) {
         variables[i].is_initialized = 0;
         variables[i].is_string = 0;
+        variables[i].is_float = 0;
     }
 }
 
@@ -45,6 +48,27 @@ int set_var(const char* name, int value) {
     }
     variables[idx].value = value;
     variables[idx].is_string = 0;
+    variables[idx].is_float = 0;
+    variables[idx].is_initialized = 1;
+    return 1;
+}
+
+int set_var_float(const char* name, float value) {
+    int idx = find_var(name);
+    if (idx == -1) {
+        if (var_count >= MAX_VARS) return 0;
+        idx = var_count;
+        int i = 0;
+        while (name[i] && i < MAX_VAR_NAME - 1) {
+            variables[idx].name[i] = name[i];
+            i++;
+        }
+        variables[idx].name[i] = '\0';
+        var_count++;
+    }
+    variables[idx].float_value = value;
+    variables[idx].is_string = 0;
+    variables[idx].is_float = 1;
     variables[idx].is_initialized = 1;
     return 1;
 }
@@ -69,16 +93,25 @@ int set_var_string(const char* name, const char* str) {
     }
     variables[idx].str_value[i] = '\0';
     variables[idx].is_string = 1;
+    variables[idx].is_float = 0;
     variables[idx].is_initialized = 1;
     return 1;
 }
 
 int get_var(const char* name) {
     int idx = find_var(name);
-    if (idx != -1 && variables[idx].is_initialized && !variables[idx].is_string) {
+    if (idx != -1 && variables[idx].is_initialized && !variables[idx].is_string && !variables[idx].is_float) {
         return variables[idx].value;
     }
     return 0;
+}
+
+float get_var_float(const char* name) {
+    int idx = find_var(name);
+    if (idx != -1 && variables[idx].is_initialized && variables[idx].is_float) {
+        return variables[idx].float_value;
+    }
+    return 0.0f;
 }
 
 char* get_var_string(const char* name) {
@@ -94,32 +127,7 @@ int is_string_var(const char* name) {
     return (idx != -1 && variables[idx].is_initialized && variables[idx].is_string);
 }
 
-void int_to_string(int value, char* buffer) {
-    if (value == 0) {
-        buffer[0] = '0';
-        buffer[1] = '\0';
-        return;
-    }
-
-    int is_negative = 0;
-    if (value < 0) {
-        is_negative = 1;
-        value = -value;
-    }
-
-    char temp[32];
-    int i = 0;
-    while (value > 0) {
-        temp[i++] = '0' + (value % 10);
-        value /= 10;
-    }
-
-    int j = 0;
-    if (is_negative) {
-        buffer[j++] = '-';
-    }
-    for (int k = i - 1; k >= 0; k--) {
-        buffer[j++] = temp[k];
-    }
-    buffer[j] = '\0';
+int is_float_var(const char* name) {
+    int idx = find_var(name);
+    return (idx != -1 && variables[idx].is_initialized && variables[idx].is_float);
 }

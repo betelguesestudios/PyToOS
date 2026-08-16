@@ -1,3 +1,4 @@
-user_name = input("Please enter your name: ")
-print("Hello, ")
-printvar(user_name)
+shutup = input("hello")
+shutp = 10
+shutup_num = parse_int(shutup)
+print(shutup_num + shutp)

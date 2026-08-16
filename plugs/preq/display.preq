@@ -125,3 +125,48 @@ void print_int(int value) {
     int_to_string(value, buffer);
     print_string(buffer);
 }
+void int_to_string(int value, char* buffer) {
+    if (value == 0) {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return;
+    }
+
+    int is_negative = 0;
+    if (value < 0) {
+        is_negative = 1;
+        value = -value;
+    }
+
+    char temp[32];
+    int i = 0;
+    while (value > 0) {
+        temp[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+
+    int j = 0;
+    if (is_negative) {
+        buffer[j++] = '-';
+    }
+    for (int k = i - 1; k >= 0; k--) {
+        buffer[j++] = temp[k];
+    }
+    buffer[j] = '\0';
+}
+void print_float(float value) {
+    int int_part = (int)value;
+    int decimal_part = (int)((value - int_part) * 100);
+    if (decimal_part < 0) decimal_part = -decimal_part;
+    
+    if (decimal_part == 0) {
+        print_int(int_part);
+    } else {
+        char buffer[64];
+        int_to_string(int_part, buffer);
+        print_string(buffer);
+        print_char('.');
+        int_to_string(decimal_part, buffer);
+        print_string(buffer);
+    }
+}
